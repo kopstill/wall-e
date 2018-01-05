@@ -8,3 +8,7 @@ server:
 ---
 logging:
   path: /data/logs/wall-e
+---
+business:
+  wechat:
+    token: A3QrbGmHagRYPPMOMiqK9oXYmEsDRLCH
