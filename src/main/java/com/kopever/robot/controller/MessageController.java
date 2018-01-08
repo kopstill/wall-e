@@ -24,9 +24,10 @@ public class MessageController {
     @Value("${business.wechat.token}")
     private String token;
 
-    @GetMapping("/")
+    @GetMapping("/messages")
     public String signature(WechatVerificationVO requestVO) {
         logger.info("MessageController.signature.requestVO -> {}", Jackson.toJson(requestVO));
+
         Map<Object, Object> map = Maps.newHashMap();
         map.put("timestamp", requestVO.getTimestamp());
         map.put("nonce", requestVO.getNonce());
@@ -35,6 +36,7 @@ public class MessageController {
 
         String sign = SignUtil.wechatSignWithSHA1(map);
         logger.info("MessageController.signature.sign -> {}", sign);
+
         if (sign.equals(requestVO.getSignature())) {
             return requestVO.getEchostr();
         }
