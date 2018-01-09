@@ -1,40 +1,39 @@
 package com.kopever.robot.controller;
 
-import com.google.common.collect.Maps;
+import com.kopever.robot.config.WechatConfig;
 import com.kopever.robot.domain.vo.WechatVerificationVO;
 import com.kopever.robot.util.Jackson;
-import com.kopever.robot.util.SignUtil;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
+import java.util.Arrays;
 
 /**
  * Created by Lullaby on 2018/1/5
  */
-@RestController
+@RestController("messages")
 public class MessageController {
 
     private static Logger logger = LoggerFactory.getLogger(MessageController.class);
 
-    @Value("${business.wechat.token}")
-    private String token;
+    @Autowired
+    private WechatConfig wechatConfig;
 
-    @GetMapping("/messages")
+    @GetMapping
     public String signature(WechatVerificationVO requestVO) {
         logger.info("MessageController.signature.requestVO -> {}", Jackson.toJson(requestVO));
 
-        Map<Object, Object> map = Maps.newHashMap();
-        map.put("timestamp", requestVO.getTimestamp());
-        map.put("nonce", requestVO.getNonce());
-        map.put("token", token);
-        logger.info("MessageController.signature.map -> {}", Jackson.toJson(map));
+        String[] array = {requestVO.getTimestamp(), requestVO.getNonce(), wechatConfig.getToken()};
+        Arrays.sort(array);
+        String text = array[0] + array[1] + array[2];
+        logger.info("MessageController.signature.text -> {}", text);
 
-        String sign = SignUtil.wechatSignWithSHA1(map);
+        String sign = DigestUtils.sha1Hex(text);
         logger.info("MessageController.signature.sign -> {}", sign);
 
         if (sign.equals(requestVO.getSignature())) {
