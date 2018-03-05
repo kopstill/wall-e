@@ -12,9 +12,7 @@ import okhttp3.*;
 
 import java.io.IOException;
 import java.net.URLEncoder;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -38,8 +36,6 @@ public class WallE {
 
     private static final String WECHAT_LOGIN_CHECK_URL = "https://login.wx.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=%s&tip=%s&r=%s&_=%s";
 
-    private static final String WECHAT_CHECK_MESSAGE_URI = "/synccheck?r=%s&skey=%s&sid=%s&uin=%s&deviceid=%s&synckey=%s&_=%s";
-
     private String baseUrl;
 
     private String qrcode;
@@ -58,9 +54,11 @@ public class WallE {
 
     private String username;
 
-    private final String DEVICE_ID = "e" + randomInt();
+    private final String DEVICE_ID = "e" + randomInt(15);
 
     private boolean isLogin = false;
+
+    private HashMap<String, List<Cookie>> cookieStore = new HashMap<>();
 
     public static void main(String[] args) {
         new WallE().start();
@@ -82,6 +80,8 @@ public class WallE {
 
                 initWechat();
 
+                establishNotify();
+
                 listenMessage();
             }
         } catch (Exception e) {
@@ -94,20 +94,34 @@ public class WallE {
         System.exit(0);
     }
 
-    private void listenMessage() throws IOException {
-        establishNotify();
+    private void listenMessage() throws IOException, InterruptedException {
+        String host = baseUrl.substring(8, baseUrl.length());
+        long __ = System.currentTimeMillis();
+        while (true) {
+            String checkUri = String.format("/synccheck?r=%s&skey=%s&sid=%s&uin=%s&deviceid=%s&synckey=%s&_=%s",
+                    System.currentTimeMillis(),
+                    URLEncoder.encode(skey, "UTF-8"),
+                    URLEncoder.encode(wxsid, "UTF-8"),
+                    URLEncoder.encode(wxuin, "UTF-8"),
+                    URLEncoder.encode(DEVICE_ID, "UTF-8"),
+                    URLEncoder.encode(getSynckey(), "UTF-8"),
+                    __);
 
-        String checkUri = String.format(WECHAT_CHECK_MESSAGE_URI,
-                System.currentTimeMillis(),
-                URLEncoder.encode(skey, "UTF-8"),
-                URLEncoder.encode(wxsid, "UTF-8"),
-                URLEncoder.encode(wxuin, "UTF-8"),
-                URLEncoder.encode(DEVICE_ID, "UTF-8"),
-                URLEncoder.encode(getSynckey(), "UTF-8"),
-                System.currentTimeMillis());
-        String checkUrl = "https://webpush." + baseUrl.substring(8, baseUrl.length()) + checkUri;
-        System.out.println(checkUrl);
-        checkMessage(checkUrl);
+            String checkUrl = "https://webpush." + host + checkUri;
+
+            try {
+                checkMessage(checkUrl);
+            } catch (Exception e) {
+                logger.severe(e.getMessage());
+                Thread.sleep(3000);
+            }
+
+            if (checkUri.equals(checkUrl)) {
+                break;
+            }
+
+            __++;
+        }
     }
 
     private void establishNotify() throws IOException {
@@ -131,8 +145,7 @@ public class WallE {
         String result = httpPost(establishUrl, json);
 
         if (result != null) {
-            JsonParser parser = new JsonParser();
-            JsonObject jsonObject = parser.parse(result).getAsJsonObject();
+            JsonObject jsonObject = jsonParser.parse(result).getAsJsonObject();
             JsonObject baseResponse = jsonObject.getAsJsonObject("BaseResponse");
 
             String ret = baseResponse.get("Ret").getAsString();
@@ -150,7 +163,6 @@ public class WallE {
 
     private void checkMessage(String checkUrl) throws IOException {
         String result = httpGet(checkUrl);
-        System.out.println(result);
 
         String retcode = extract("retcode:\"(\\d+)\"", result);
         String selector = extract("selector:\"(\\d+)\"}", result);
@@ -158,16 +170,97 @@ public class WallE {
             if ("2".equals(selector)) {
                 syncMessage();
             }
+        } else if ("1101".equals(retcode)) {
+            throw new RuntimeException("You should logout on other device");
         } else if ("1102".equals(retcode)) {
             throw new RuntimeException("Synchronizing message failed");
-        } else {
-            checkMessage(checkUrl);
         }
     }
 
-    private void syncMessage() {
-        logger.info("New message");
-//        https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=1520173966405&skey=%40crypt_7f13f237_00a506c60cef29b70355a3c21e168a07&sid=iowqMDOjQwbkDqak&uin=2140276020&deviceid=e085999928113228&synckey=1_668232436%7C2_668232467%7C3_668232405%7C11_668232412%7C201_1520173815%7C203_1520170461%7C1000_1520168762%7C1001_1520168834&_=1520173216177
+    private void syncMessage() throws IOException {
+        String syncUrl = baseUrl + "/webwxsync?sid=" + wxsid + "&skey=" + skey + "&lang=zh_CN" + "&pass_ticket=" + passTicket;
+        String json = "{" +
+                "    \"BaseRequest\":{" +
+                "        \"Uin\":\"" + wxuin + "\"," +
+                "        \"Sid\":\"" + wxsid + "\"," +
+                "        \"Skey\":\"" + skey + "\"," +
+                "        \"DeviceID\":\"" + DEVICE_ID + "\"" +
+                "    }," +
+                "    \"SyncKey\":" + synckey.toString() + "," +
+                "    \"rr\":" + randomNegativeInt() +
+                "}";
+        String result = httpPost(syncUrl, json);
+
+        if (result != null) {
+            JsonObject jsonObject = jsonParser.parse(result).getAsJsonObject();
+            synckey = jsonObject.getAsJsonObject("SyncKey");
+
+            JsonArray messages = jsonObject.getAsJsonArray("AddMsgList");
+            for (int i = 0; i < messages.size(); i++) {
+                JsonObject msgobj = messages.get(i).getAsJsonObject();
+                logger.info("Receive message: " + msgobj.toString());
+                String fromUserName = msgobj.get("FromUserName").getAsString();
+                String toUsername = msgobj.get("ToUserName").getAsString();
+
+                int msgType = msgobj.get("MsgType").getAsInt();
+                if (msgType == 1) {
+//                    if (toUsername.contains("@@")) {
+//                        sendMessage(fromUserName, getMessage(fromUserName, "锤子哦！[群消息]"));
+//                    }
+                    if (toUsername.equals(username)) {
+                        String message = getMessage(fromUserName, msgobj.get("Content").getAsString());
+                        if (message.contains("http")) {
+                            sendMessage(fromUserName, "锤子哦！[链接？]");
+                        } else {
+                            sendMessage(fromUserName, "锤子哦！[私有消息]");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private void sendMessage(String toUsername, String message) throws IOException {
+        String sendUrl = baseUrl + "/webwxsendmsg?lang=zh_CN&pass_ticket=" + passTicket;
+        String messageId = System.currentTimeMillis() + randomInt(4);
+        String json = "{" +
+                "    \"BaseRequest\":{" +
+                "        \"Uin\":" + wxuin + "," +
+                "        \"Sid\":\"" + wxsid + "\"," +
+                "        \"Skey\":\"" + skey + "\"," +
+                "        \"DeviceID\":\"" + DEVICE_ID + "\"" +
+                "    }," +
+                "    \"Msg\":{" +
+                "        \"Type\":1," +
+                "        \"Content\":\"" + message + "\"," +
+                "        \"FromUserName\":\"" + username + "\"," +
+                "        \"ToUserName\":\"" + toUsername + "\"," +
+                "        \"LocalID\":\"" + messageId + "\"," +
+                "        \"ClientMsgId\":\"" + messageId + "\"" +
+                "    }," +
+                "    \"Scene\":0" +
+                "}";
+
+        String result = httpPost(sendUrl, json);
+        if (result != null) {
+            JsonObject jsonobj = jsonParser.parse(result).getAsJsonObject();
+            JsonObject baseResponse = jsonobj.getAsJsonObject("BaseResponse");
+            String ret = baseResponse.get("Ret").getAsString();
+            String msg = baseResponse.get("ErrMsg").getAsString();
+
+            if ("0".equals(ret)) {
+                logger.info("Send message success");
+            } else {
+                logger.warning("Send message failed, msg: " + msg);
+            }
+        }
+    }
+
+    private String getMessage(String fromUserName, String message) {
+        logger.info("FromeUserName: " + fromUserName);
+        logger.info("Message: " + message);
+
+        return fromUserName + message;
     }
 
     private void initWechat() throws IOException {
@@ -271,7 +364,19 @@ public class WallE {
     }
 
     private String httpGet(String url) throws IOException {
-        OkHttpClient client = new OkHttpClient.Builder().readTimeout(30, TimeUnit.SECONDS).build();
+        OkHttpClient client = new OkHttpClient.Builder().cookieJar(
+                new CookieJar() {
+                    @Override
+                    public void saveFromResponse(HttpUrl httpUrl, List<Cookie> cookies) {
+                        cookieStore.put(httpUrl.host(), cookies);
+                    }
+
+                    @Override
+                    public List<Cookie> loadForRequest(HttpUrl httpUrl) {
+                        return loadCookie(httpUrl);
+                    }
+                }
+        ).readTimeout(30, TimeUnit.SECONDS).build();
         Request request = new Request.Builder().url(url).build();
         Response response = client.newCall(request).execute();
 
@@ -285,8 +390,36 @@ public class WallE {
         return null;
     }
 
+    private List<Cookie> loadCookie(HttpUrl httpUrl) {
+        String cookieHost;
+        String host = httpUrl.host();
+
+        String[] items = httpUrl.host().split("[.]");
+        if (items.length > 3) {
+            cookieHost = host.substring(host.indexOf(".") + 1);
+        } else {
+            cookieHost = host;
+        }
+
+        List<Cookie> cookies = cookieStore.get(cookieHost);
+
+        return cookies != null ? cookies : new ArrayList<>();
+    }
+
     private String httpPost(String url, String json) throws IOException {
-        OkHttpClient client = new OkHttpClient();
+        OkHttpClient client = new OkHttpClient.Builder().cookieJar(
+                new CookieJar() {
+                    @Override
+                    public void saveFromResponse(HttpUrl httpUrl, List<Cookie> cookies) {
+                        cookieStore.put(httpUrl.host(), cookies);
+                    }
+
+                    @Override
+                    public List<Cookie> loadForRequest(HttpUrl httpUrl) {
+                        return loadCookie(httpUrl);
+                    }
+                }
+        ).build();
 
         RequestBody requestBody = RequestBody.create(APPLICATION_JSON, json);
         Request request = new Request.Builder()
@@ -317,11 +450,11 @@ public class WallE {
         return Integer.toString(~((int) System.currentTimeMillis()));
     }
 
-    private String randomInt() {
+    private String randomInt(int length) {
         StringBuilder builder = new StringBuilder();
 
         Random random = new Random();
-        for (int i = 0; i < 15; i++) {
+        for (int i = 0; i < length; i++) {
             builder.append(random.nextInt(10));
         }
 
