@@ -11,6 +11,7 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import okhttp3.*;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -31,15 +32,15 @@ public class WallE {
 
     private static final MediaType APPLICATION_JSON = MediaType.parse("application/json; charset=utf-8");
 
-    private static final String WECHAT_JSLOGIN_URL = "https://login.wx2.qq.com/jslogin?appid=wx782c26e4c19acffb&fun=new&lang=zh_CN&_=%s";
+    private static final String WECHAT_JSLOGIN_URL = "https://login.wx.qq.com/jslogin?appid=wx782c26e4c19acffb&fun=new&lang=zh_CN&_=%s";
 
     private static final String WECHAT_LOGIN_URL = "https://login.weixin.qq.com/l/%s";
 
-    private static final String WECHAT_LOGIN_CHECK_URL = "https://login.wx2.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=%s&tip=%s&r=%s&_=%s";
+    private static final String WECHAT_LOGIN_CHECK_URL = "https://login.wx.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=%s&tip=%s&r=%s&_=%s";
 
-    private static final String WECHAT_BASE_URL = "https://wx2.qq.com/cgi-bin/mmwebwx-bin/";
+    private static final String WECHAT_CHECK_MESSAGE_URI = "/synccheck?r=%s&skey=%s&sid=%s&uin=%s&deviceid=%s&synckey=%s&_=%s";
 
-    private static final String WECHAT_CHECK_MESSAGE_URL = "https://webpush.wx2.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=%s&skey=%s&sid=%s&uin=%s&deviceid=%s&synckey=%s&_=%s";
+    private String baseUrl;
 
     private String qrcode;
 
@@ -55,7 +56,7 @@ public class WallE {
 
     private JsonObject synckey;
 
-//    private String username;
+    private String username;
 
     private final String DEVICE_ID = "e" + randomInt();
 
@@ -66,12 +67,13 @@ public class WallE {
     }
 
     private void start() {
-        logger.info("Welcome to wall-e wechat robot.");
+        logger.info("Welcome to wall-e wechat robot");
+
         try {
             this.qrcode = getQrcode();
 
             String consoleQrcode = getConsoleQrcode(String.format(WECHAT_LOGIN_URL, qrcode));
-            logger.info("Please scan the QR code below to login.\n" + consoleQrcode);
+            logger.info("Please scan the QR code below to login\n" + consoleQrcode);
 
             checkLoginStatus(1);
 
@@ -83,44 +85,93 @@ public class WallE {
                 listenMessage();
             }
         } catch (Exception e) {
-            e.printStackTrace();
             logger.severe(e.getMessage());
+            logger.severe("WALL-E shutdown");
+            System.exit(1);
         }
 
-        logger.severe("WallE shutdown");
-        System.exit(-1);
+        logger.info("WALL-E shutdown");
+        System.exit(0);
     }
 
     private void listenMessage() throws IOException {
-        String checkUrl = String.format(WECHAT_CHECK_MESSAGE_URL,
-                System.currentTimeMillis(), skey, wxsid, wxuin, DEVICE_ID, getSynckey(), System.currentTimeMillis());
-        logger.info("Check message url -> " + checkUrl);
-        while (true) {
-            checkMessage(checkUrl);
+        establishNotify();
+
+        String checkUri = String.format(WECHAT_CHECK_MESSAGE_URI,
+                System.currentTimeMillis(),
+                URLEncoder.encode(skey, "UTF-8"),
+                URLEncoder.encode(wxsid, "UTF-8"),
+                URLEncoder.encode(wxuin, "UTF-8"),
+                URLEncoder.encode(DEVICE_ID, "UTF-8"),
+                URLEncoder.encode(getSynckey(), "UTF-8"),
+                System.currentTimeMillis());
+        String checkUrl = "https://webpush." + baseUrl.substring(8, baseUrl.length()) + checkUri;
+        System.out.println(checkUrl);
+        checkMessage(checkUrl);
+    }
+
+    private void establishNotify() throws IOException {
+        String establishUrl = baseUrl + "/webwxstatusnotify?pass_ticket=" + passTicket;
+
+        Map<String, Object> params = new HashMap<>();
+
+        Map<String, String> baseRequest = new HashMap<>();
+        baseRequest.put("Uin", wxuin);
+        baseRequest.put("Sid", wxsid);
+        baseRequest.put("Skey", skey);
+        baseRequest.put("DeviceID", DEVICE_ID);
+        params.put("BaseRequest", baseRequest);
+
+        params.put("Code", "3");
+        params.put("FromUserName", username);
+        params.put("ToUserName", username);
+        params.put("ClientMsgId", System.currentTimeMillis());
+
+        String json = new GsonBuilder().create().toJson(params);
+        String result = httpPost(establishUrl, json);
+
+        if (result != null) {
+            JsonParser parser = new JsonParser();
+            JsonObject jsonObject = parser.parse(result).getAsJsonObject();
+            JsonObject baseResponse = jsonObject.getAsJsonObject("BaseResponse");
+
+            String ret = baseResponse.get("Ret").getAsString();
+            String msg = baseResponse.get("ErrMsg").getAsString();
+            if ("0".equals(ret)) {
+                logger.info("Notify connection established");
+                return;
+            }
+
+            logger.severe(msg);
         }
+
+        throw new RuntimeException("Establish notify connection failed");
     }
 
     private void checkMessage(String checkUrl) throws IOException {
         String result = httpGet(checkUrl);
-        logger.info("Listening -> " + result);
+        System.out.println(result);
 
         String retcode = extract("retcode:\"(\\d+)\"", result);
         String selector = extract("selector:\"(\\d+)\"}", result);
-
         if ("0".equals(retcode)) {
             if ("2".equals(selector)) {
                 syncMessage();
             }
+        } else if ("1102".equals(retcode)) {
+            throw new RuntimeException("Synchronizing message failed");
+        } else {
+            checkMessage(checkUrl);
         }
     }
 
     private void syncMessage() {
         logger.info("New message");
-//        https://webpush.wx2.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=1520173966405&skey=%40crypt_7f13f237_00a506c60cef29b70355a3c21e168a07&sid=iowqMDOjQwbkDqak&uin=2140276020&deviceid=e085999928113228&synckey=1_668232436%7C2_668232467%7C3_668232405%7C11_668232412%7C201_1520173815%7C203_1520170461%7C1000_1520168762%7C1001_1520168834&_=1520173216177
+//        https://webpush.wx.qq.com/cgi-bin/mmwebwx-bin/synccheck?r=1520173966405&skey=%40crypt_7f13f237_00a506c60cef29b70355a3c21e168a07&sid=iowqMDOjQwbkDqak&uin=2140276020&deviceid=e085999928113228&synckey=1_668232436%7C2_668232467%7C3_668232405%7C11_668232412%7C201_1520173815%7C203_1520170461%7C1000_1520168762%7C1001_1520168834&_=1520173216177
     }
 
     private void initWechat() throws IOException {
-        String initUrl = WECHAT_BASE_URL + "webwxinit" + "?r=" + randomNegativeInt() + "&lang=zh_CN" + "&pass_ticket=" + passTicket;
+        String initUrl = baseUrl + "/webwxinit" + "?r=" + randomNegativeInt() + "&lang=zh_CN" + "&pass_ticket=" + passTicket;
 
         Map<String, String> params = new HashMap<>(4);
         params.put("DeviceID", DEVICE_ID);
@@ -132,13 +183,13 @@ public class WallE {
         if (result != null) {
             JsonObject jsonObject = jsonParser.parse(result).getAsJsonObject();
             synckey = jsonObject.getAsJsonObject("SyncKey");
-//            username = jsonObject.getAsJsonObject("User").get("UserName").getAsString();
+            username = jsonObject.getAsJsonObject("User").get("UserName").getAsString();
             logger.info("Init wechat successfully");
 
             return;
         }
 
-        throw new RuntimeException("init wechat exception");
+        throw new RuntimeException("Init wechat exception");
     }
 
     private void getLoginMessage() throws IOException {
@@ -152,6 +203,7 @@ public class WallE {
             this.wxuin = extract("<wxuin>(\\S+)</wxuin>", result);
             this.passTicket = extract("<pass_ticket>(\\S+)</pass_ticket>", result);
 
+            logger.info("Parameters initialized");
             return;
         }
 
@@ -171,17 +223,21 @@ public class WallE {
         } else if ("200".equals(resultCode)) {
             isLogin = true;
             logger.info("Login successfully");
-            this.redirectUri = extract("window.redirect_uri=\"(\\S+?)\";", result);
+            String redirectUri = extract("window.redirect_uri=\"(\\S+?)\";", result);
+            if (redirectUri != null) {
+                this.redirectUri = redirectUri;
+                this.baseUrl = redirectUri.substring(0, redirectUri.lastIndexOf("/"));
+            }
         } else if ("201".equals(resultCode)) {
             logger.info("Scanned successfully");
             logger.info("Please confirm on your phone");
             checkLoginStatus(tip);
         } else if ("400".equals(resultCode)) {
-            logger.info("Qrcode expired");
-            logger.info("Please restart the application to get new qrcode");
+            logger.warning("Qrcode expired");
+            logger.warning("Please restart the application to get new qrcode");
         } else {
-            logger.info(result);
-            throw new RuntimeException("unexpected");
+            logger.warning(result);
+            throw new RuntimeException("Unexpected login status");
         }
     }
 
@@ -226,7 +282,7 @@ public class WallE {
             }
         }
 
-        throw new RuntimeException("http exception");
+        return null;
     }
 
     private String httpPost(String url, String json) throws IOException {
