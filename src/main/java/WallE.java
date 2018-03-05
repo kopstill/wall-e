@@ -277,7 +277,7 @@ public class WallE {
             JsonObject jsonObject = jsonParser.parse(result).getAsJsonObject();
             synckey = jsonObject.getAsJsonObject("SyncKey");
             username = jsonObject.getAsJsonObject("User").get("UserName").getAsString();
-            logger.info("Init wechat successfully");
+            logger.info("Wechat initialized");
 
             return;
         }
