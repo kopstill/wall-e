@@ -30,11 +30,11 @@ public class WallE {
 
     private static final MediaType APPLICATION_JSON = MediaType.parse("application/json; charset=utf-8");
 
-    private static final String WECHAT_JSLOGIN_URL = "https://login.wx.qq.com/jslogin?appid=wx782c26e4c19acffb&fun=new&lang=zh_CN&_=%s";
+    private static final String WECHAT_JSLOGIN_URL = "https://login.wx2.qq.com/jslogin?appid=wx782c26e4c19acffb&fun=new&lang=zh_CN&_=%s";
 
     private static final String WECHAT_LOGIN_URL = "https://login.weixin.qq.com/l/%s";
 
-    private static final String WECHAT_LOGIN_CHECK_URL = "https://login.wx.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=%s&tip=%s&r=%s&_=%s";
+    private static final String WECHAT_LOGIN_CHECK_URL = "https://login.wx2.qq.com/cgi-bin/mmwebwx-bin/login?loginicon=true&uuid=%s&tip=%s&r=%s&_=%s";
 
     private String baseUrl;
 
@@ -76,7 +76,7 @@ public class WallE {
             checkLoginStatus(1);
 
             if (isLogin) {
-                getLoginMessage();
+                getLoginData();
 
                 initWechat();
 
@@ -86,7 +86,7 @@ public class WallE {
             }
         } catch (Exception e) {
             logger.severe(e.getMessage());
-            logger.severe("WALL-E shutdown");
+            logger.severe("WALL-E exception and shutdown");
             System.exit(1);
         }
 
@@ -96,7 +96,7 @@ public class WallE {
 
     private void listenMessage() throws IOException, InterruptedException {
         String host = baseUrl.substring(8, baseUrl.length());
-        long __ = System.currentTimeMillis();
+        long timestamp = System.currentTimeMillis();
         while (true) {
             String checkUri = String.format("/synccheck?r=%s&skey=%s&sid=%s&uin=%s&deviceid=%s&synckey=%s&_=%s",
                     System.currentTimeMillis(),
@@ -105,14 +105,14 @@ public class WallE {
                     URLEncoder.encode(wxuin, "UTF-8"),
                     URLEncoder.encode(DEVICE_ID, "UTF-8"),
                     URLEncoder.encode(getSynckey(), "UTF-8"),
-                    __);
+                    timestamp);
 
             String checkUrl = "https://webpush." + host + checkUri;
 
             try {
                 checkMessage(checkUrl);
             } catch (Exception e) {
-                logger.severe(e.getMessage());
+                logger.warning(e.getMessage());
                 Thread.sleep(3000);
             }
 
@@ -120,7 +120,7 @@ public class WallE {
                 break;
             }
 
-            __++;
+            timestamp++;
         }
     }
 
@@ -169,11 +169,17 @@ public class WallE {
         if ("0".equals(retcode)) {
             if ("2".equals(selector)) {
                 syncMessage();
+            } else {
+                throw new RuntimeException("Print selector: " + selector);
             }
+        } else if ("1100".equals(retcode)) {
+            logger.warning("Your account has logged out");
+            System.exit(0);
         } else if ("1101".equals(retcode)) {
-            throw new RuntimeException("You should logout on other device");
-        } else if ("1102".equals(retcode)) {
-            throw new RuntimeException("Synchronizing message failed");
+            logger.warning("Your account is logged in on another device");
+            System.exit(0);
+        } else {
+            throw new RuntimeException("Unknown retcode: " + selector);
         }
     }
 
@@ -199,25 +205,29 @@ public class WallE {
             for (int i = 0; i < messages.size(); i++) {
                 JsonObject msgobj = messages.get(i).getAsJsonObject();
                 logger.info("Receive message: " + msgobj.toString());
-                String fromUserName = msgobj.get("FromUserName").getAsString();
-                String toUsername = msgobj.get("ToUserName").getAsString();
+
+//                String fromUserName = msgobj.get("FromUserName").getAsString();
+//                String toUsername = msgobj.get("ToUserName").getAsString();
 
                 int msgType = msgobj.get("MsgType").getAsInt();
                 if (msgType == 1) {
 //                    if (toUsername.contains("@@")) {
-//                        sendMessage(fromUserName, getMessage(fromUserName, "锤子哦！[群消息]"));
+//                        sendMessage(fromUserName, getMessage(fromUserName, "group message"));
+//                    } else {
+//                        sendMessage(fromUserName, "private message");
 //                    }
-                    if (toUsername.equals(username)) {
-                        String message = getMessage(fromUserName, msgobj.get("Content").getAsString());
-                        if (message.contains("http")) {
-                            sendMessage(fromUserName, "锤子哦！[链接？]");
-                        } else {
-                            sendMessage(fromUserName, "锤子哦！[私有消息]");
-                        }
+                } else if (msgType == 49) {
+                    String url = msgobj.get("Url").getAsString();
+                    if (url.startsWith("https://common.ofo.so/packet/")) {
+                        getOfoPacket(url);
                     }
                 }
             }
         }
+    }
+
+    private void getOfoPacket(String url) {
+
     }
 
     private void sendMessage(String toUsername, String message) throws IOException {
@@ -282,21 +292,26 @@ public class WallE {
             return;
         }
 
-        throw new RuntimeException("Init wechat exception");
+        throw new RuntimeException("Wechat initialize exception");
     }
 
-    private void getLoginMessage() throws IOException {
+    private void getLoginData() throws IOException {
         String result = httpGet(redirectUri + "&fun=new&version=v2");
 
         String ret = extract("<ret>(\\S+)</ret>", result);
         String message = extract("<message>(\\S+)</message>", result);
+        if (message == null) {
+            message = result.substring(result.indexOf("<message>") + "<message>".length(), result.indexOf("</message>"));
+        }
         if ("0".equals(ret)) {
+            logger.info("Login successfully");
+
             this.skey = extract("<skey>(\\S+)</skey>", result);
             this.wxsid = extract("<wxsid>(\\S+)</wxsid>", result);
             this.wxuin = extract("<wxuin>(\\S+)</wxuin>", result);
             this.passTicket = extract("<pass_ticket>(\\S+)</pass_ticket>", result);
 
-            logger.info("Parameters initialized");
+            logger.info("Session parameters initialized");
             return;
         }
 
@@ -314,8 +329,7 @@ public class WallE {
             logger.info("Waiting for scanning the qrcode");
             checkLoginStatus(tip);
         } else if ("200".equals(resultCode)) {
-            isLogin = true;
-            logger.info("Login successfully");
+            this.isLogin = true;
             String redirectUri = extract("window.redirect_uri=\"(\\S+?)\";", result);
             if (redirectUri != null) {
                 this.redirectUri = redirectUri;
@@ -323,7 +337,7 @@ public class WallE {
             }
         } else if ("201".equals(resultCode)) {
             logger.info("Scanned successfully");
-            logger.info("Please confirm on your phone");
+            logger.info("Please confirm on your device");
             checkLoginStatus(tip);
         } else if ("400".equals(resultCode)) {
             logger.warning("Qrcode expired");
