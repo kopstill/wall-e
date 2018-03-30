@@ -217,17 +217,22 @@ public class WallE {
 //                        sendMessage(fromUserName, "private message");
 //                    }
                 } else if (msgType == 49) {
-                    String url = msgobj.get("Url").getAsString();
-                    if (url.startsWith("https://common.ofo.so/packet/")) {
-                        getOfoPacket(url);
-                    }
+                    sendMessage(username, "成功领取一个ofo红包");
+//                    handleLinkMessage(msgobj);
                 }
             }
         }
     }
 
-    private void getOfoPacket(String url) {
-
+    private void handleLinkMessage(JsonObject msgobj) throws IOException {
+        String url = msgobj.get("Url").getAsString();
+        if (url.startsWith("https://common.ofo.so/packet/")) {
+            if (Packet.getOfoPacket(url)) {
+                sendMessage(username, "成功领取一个ofo红包");
+            } else {
+                sendMessage(username, "收到一个ofo红包但领取失败");
+            }
+        }
     }
 
     private void sendMessage(String toUsername, String message) throws IOException {
@@ -264,13 +269,6 @@ public class WallE {
                 logger.warning("Send message failed, msg: " + msg);
             }
         }
-    }
-
-    private String getMessage(String fromUserName, String message) {
-        logger.info("FromeUserName: " + fromUserName);
-        logger.info("Message: " + message);
-
-        return fromUserName + message;
     }
 
     private void initWechat() throws IOException {
