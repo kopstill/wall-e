@@ -1,11 +1,9 @@
 import okhttp3.*;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Base64;
 import java.util.Random;
-import java.util.RandomAccess;
 
 /**
  * Created by Lullaby on 2018/3/30
@@ -42,10 +40,13 @@ public class Packet {
 
 class PhoneNumberGenerator {
 
-    private static final int[] MOBILE_PREFIX = new int[]{133, 153, 177, 180,
-            181, 189, 134, 135, 136, 137, 138, 139, 150, 151, 152, 157, 158, 159,
-            178, 182, 183, 184, 187, 188, 130, 131, 132, 155, 156, 176, 185, 186,
-            145, 147, 170};
+    private static final int[] MOBILE_PREFIX = new int[]{
+            130, 131, 132, 133, 134, 135, 136,
+            137, 138, 139, 145, 147, 150, 151,
+            152, 153, 155, 156, 157, 158, 159,
+            170, 176, 177, 178, 180, 181, 182,
+            183, 184, 185, 186, 187, 188, 189
+    };
 
     public String generate() {
         StringBuilder post = new StringBuilder();
