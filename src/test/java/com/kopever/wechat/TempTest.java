@@ -2,6 +2,7 @@ package com.kopever.wechat;
 
 import com.google.gson.*;
 import okhttp3.*;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Base64;
@@ -16,7 +17,8 @@ import java.util.regex.Pattern;
  */
 public class TempTest {
 
-    public static void main0(String[] args) {
+    @Test
+    public void testParseJson() {
         Map<String, Object> map = new HashMap<>();
 
         Map<String, String> baseRequest = new HashMap<>();
@@ -78,7 +80,8 @@ public class TempTest {
 
     private static final String TARGET_PHONE_NUMBER = "MTM2OTQyNjc0MDk=";
 
-    public static void main(String[] args) throws IOException {
+    @Test
+    public void testGetOfoLuckyCoupon() throws IOException {
         String url = "https://ofo-misc.ofo.com/regular_packet/index.html#/?random=https%3A%2F%2Fimg.ofo.so%2Fcms%2F7d0ed865c419f1926a729e0671ca0fe8.jpg,#1146636033/4a8f22fe84346276b82de5399f829bb8f8b595619cd32cbce0ced9a4d8124c185670e8ed3014f7fd283210120e898c5ee4ec9fb47cf021b2944326c030d04293e624250920d1c6f3d470a7e9e8deb25e";
         String substring = url.substring(url.lastIndexOf("#") + 1, url.length());
         String[] refs = substring.split("[/]");
@@ -146,7 +149,8 @@ public class TempTest {
             156, 176, 185, 186, 145, 147, 170
     };
 
-    private void testBubbleSort() {
+    @Test
+    public void testBubbleSort() {
         bubbleSort(mobilePrefix);
 
         for (int i : mobilePrefix) {
@@ -193,6 +197,13 @@ public class TempTest {
         }
 
         return null;
+    }
+
+    @Test
+    public void testOfoLuckyCoupon() {
+        String url = "https://ofo-misc.ofo.com/regular_packet/index.html?from=singlemessage&isappinstalled=0#/?random=https://img.ofo.so/cms/7d0ed865c419f1926a729e0671ca0fe8.jpg,#1176785907/2d854cbf595156a97b7c8a62a46289ddb8a2ebd6052797d5cc3a384b98907669878e543cd3844be12d9967693ccd7d95715c0b6957e1baeaf0def9afec30ea182879e9f0774c1874d17ff6ad64289b38";
+        boolean flag = Coupon.getOfoLuckyCoupon(url);
+        System.out.println(flag);
     }
 
 }

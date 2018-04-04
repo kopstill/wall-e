@@ -1,4 +1,4 @@
-package com.kopever.wechat.wechat;
+package com.kopever.wechat;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -206,7 +206,6 @@ public class Application {
             JsonArray messages = jsonObject.getAsJsonArray("AddMsgList");
             for (int i = 0; i < messages.size(); i++) {
                 JsonObject msgobj = messages.get(i).getAsJsonObject();
-                logger.info("Receive message: " + msgobj.toString());
 
                 int msgType = msgobj.get("MsgType").getAsInt();
                 if (msgType == 49) {
@@ -218,8 +217,10 @@ public class Application {
 
     private void handleLinkMessage(JsonObject msgobj) throws IOException {
         String url = msgobj.get("Url").getAsString();
-        if (url.startsWith("https://common.ofo.so/packet/")) {
-            if (Packet.getOfoPacket(url)) {
+
+        if (url.startsWith("https://ofo-misc.ofo.com/regular_packet/")) {
+            logger.info("Ofo coupon url: " + url);
+            if (Coupon.getOfoLuckyCoupon(url)) {
                 sendMessage(username, "成功领取一个ofo红包");
             } else {
                 sendMessage(username, "收到一个ofo红包但领取失败");
@@ -288,24 +289,29 @@ public class Application {
     private void getLoginData() throws IOException {
         String result = httpGet(redirectUri + "&fun=new&version=v2");
 
-        String ret = extract("<ret>(\\S+)</ret>", result);
-        String message = extract("<message>(\\S+)</message>", result);
-        if (message == null) {
-            message = result.substring(result.indexOf("<message>") + "<message>".length(), result.indexOf("</message>"));
+        String ret = null;
+        String message = null;
+        if (result != null) {
+            ret = extract("<ret>(\\S+)</ret>", result);
+            message = extract("<message>(\\S+)</message>", result);
+            if (message == null) {
+                message = result.substring(result.indexOf("<message>") + "<message>".length(), result.indexOf("</message>"));
+            }
+
+            if ("0".equals(ret)) {
+                logger.info("Login successfully");
+
+                this.skey = extract("<skey>(\\S+)</skey>", result);
+                this.wxsid = extract("<wxsid>(\\S+)</wxsid>", result);
+                this.wxuin = extract("<wxuin>(\\S+)</wxuin>", result);
+                this.passTicket = extract("<pass_ticket>(\\S+)</pass_ticket>", result);
+
+                logger.info("Session parameters initialized");
+                return;
+            }
         }
-        if ("0".equals(ret)) {
-            logger.info("Login successfully");
 
-            this.skey = extract("<skey>(\\S+)</skey>", result);
-            this.wxsid = extract("<wxsid>(\\S+)</wxsid>", result);
-            this.wxuin = extract("<wxuin>(\\S+)</wxuin>", result);
-            this.passTicket = extract("<pass_ticket>(\\S+)</pass_ticket>", result);
-
-            logger.info("Session parameters initialized");
-            return;
-        }
-
-        throw new RuntimeException(message);
+        throw new RuntimeException(ret + ":" + message);
     }
 
     private void checkLoginStatus(int tip) throws IOException {
