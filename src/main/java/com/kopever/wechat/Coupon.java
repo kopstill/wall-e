@@ -52,7 +52,7 @@ class Coupon {
                     if (i == count - 1) {
                         String targetParams = "tel=" + new String(Base64.getDecoder().decode(IDENTITY), "UTF-8") + "&orderno=" + orderno + "&key=" + key;
                         String targetResult = Util.httpPost(ofoCouponActivityShareUrl, targetParams);
-                        logger.info("Target result: " + detectResult);
+                        logger.info("Target result: " + targetResult);
 
                         if (targetResult == null) return false;
                         JsonObject targetJsonObject = jsonParser.parse(targetResult).getAsJsonObject().getAsJsonObject("values");
