@@ -92,7 +92,7 @@ public class Application {
             System.exit(1);
         }
 
-        logger.info("WALL-E shutdown");
+        logger.warning("WALL-E shutdown");
         System.exit(0);
     }
 
@@ -176,9 +176,11 @@ public class Application {
             }
         } else if ("1100".equals(retcode)) {
             logger.warning("Your account has logged out");
+            logger.severe("WALL-E shutdown");
             System.exit(0);
         } else if ("1101".equals(retcode)) {
             logger.warning("Your account is logged in on another device");
+            logger.severe("WALL-E shutdown");
             System.exit(0);
         } else {
             throw new RuntimeException("Unknown retcode: " + selector);
