@@ -1,3 +1,5 @@
+package com.kopever.wechat.wechat;
+
 import okhttp3.*;
 
 import java.io.IOException;

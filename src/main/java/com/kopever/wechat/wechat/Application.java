@@ -1,3 +1,5 @@
+package com.kopever.wechat.wechat;
+
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -18,13 +20,13 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class WallE {
+public class Application {
 
     static {
         System.setProperty("jsse.enableSNIExtension", "false");
     }
 
-    private static Logger logger = Logger.getLogger(WallE.class.getName());
+    private static Logger logger = Logger.getLogger(Application.class.getName());
 
     private JsonParser jsonParser = new JsonParser();
 
@@ -61,7 +63,7 @@ public class WallE {
     private HashMap<String, List<Cookie>> cookieStore = new HashMap<>();
 
     public static void main(String[] args) {
-        new WallE().start();
+        new Application().start();
     }
 
     private void start() {
@@ -206,19 +208,9 @@ public class WallE {
                 JsonObject msgobj = messages.get(i).getAsJsonObject();
                 logger.info("Receive message: " + msgobj.toString());
 
-//                String fromUserName = msgobj.get("FromUserName").getAsString();
-//                String toUsername = msgobj.get("ToUserName").getAsString();
-
                 int msgType = msgobj.get("MsgType").getAsInt();
-                if (msgType == 1) {
-//                    if (toUsername.contains("@@")) {
-//                        sendMessage(fromUserName, getMessage(fromUserName, "group message"));
-//                    } else {
-//                        sendMessage(fromUserName, "private message");
-//                    }
-                } else if (msgType == 49) {
-                    sendMessage(username, "成功领取一个ofo红包");
-//                    handleLinkMessage(msgobj);
+                if (msgType == 49) {
+                    handleLinkMessage(msgobj);
                 }
             }
         }
