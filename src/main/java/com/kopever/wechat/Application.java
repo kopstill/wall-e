@@ -168,13 +168,7 @@ public class Application {
         String selector = extract("selector:\"(\\d+)\"}", result);
         logger.info("retcode: " + retcode + " | selector: " + selector);
         if ("0".equals(retcode)) {
-            if ("0".equals(selector) || "2".equals(selector)) {
-                syncMessage();
-            } else if ("6".equals(selector) || "7".equals(selector)) {
-                syncMessage();
-            } else {
-                throw new RuntimeException("Exception selector: " + selector);
-            }
+            syncMessage();
         } else if ("1100".equals(retcode)) {
             logger.warning("Your account has logged out");
             logger.severe("Wall-e shutdown");
@@ -184,7 +178,7 @@ public class Application {
             logger.severe("Wall-e shutdown");
             System.exit(0);
         } else {
-            throw new RuntimeException("Unknown retcode: " + selector);
+            throw new RuntimeException("Exception retcode: " + retcode);
         }
     }
 
