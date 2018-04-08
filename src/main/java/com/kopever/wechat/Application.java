@@ -166,13 +166,14 @@ public class Application {
 
         String retcode = extract("retcode:\"(\\d+)\"", result);
         String selector = extract("selector:\"(\\d+)\"}", result);
+        logger.info("retcode: " + retcode + " | selector: " + selector);
         if ("0".equals(retcode)) {
             if ("0".equals(selector) || "2".equals(selector)) {
                 syncMessage();
             } else if ("6".equals(selector) || "7".equals(selector)) {
                 syncMessage();
             } else {
-                throw new RuntimeException("Print selector: " + selector);
+                throw new RuntimeException("Exception selector: " + selector);
             }
         } else if ("1100".equals(retcode)) {
             logger.warning("Your account has logged out");
