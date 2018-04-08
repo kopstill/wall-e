@@ -88,11 +88,9 @@ public class Application {
             }
         } catch (Exception e) {
             logger.severe(e.getMessage());
-            logger.severe("WALL-E exception and shutdown");
-            System.exit(1);
         }
 
-        logger.warning("WALL-E shutdown");
+        logger.warning("Wall-e shutdown");
         System.exit(0);
     }
 
@@ -169,18 +167,20 @@ public class Application {
         String retcode = extract("retcode:\"(\\d+)\"", result);
         String selector = extract("selector:\"(\\d+)\"}", result);
         if ("0".equals(retcode)) {
-            if ("2".equals(selector)) {
+            if ("0".equals(selector) || "2".equals(selector)) {
+                syncMessage();
+            } else if ("6".equals(selector) || "7".equals(selector)) {
                 syncMessage();
             } else {
                 throw new RuntimeException("Print selector: " + selector);
             }
         } else if ("1100".equals(retcode)) {
             logger.warning("Your account has logged out");
-            logger.severe("WALL-E shutdown");
+            logger.severe("Wall-e shutdown");
             System.exit(0);
         } else if ("1101".equals(retcode)) {
             logger.warning("Your account is logged in on another device");
-            logger.severe("WALL-E shutdown");
+            logger.severe("Wall-e shutdown");
             System.exit(0);
         } else {
             throw new RuntimeException("Unknown retcode: " + selector);

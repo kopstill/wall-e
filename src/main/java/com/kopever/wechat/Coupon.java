@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.io.IOException;
 import java.util.Base64;
 import java.util.logging.Logger;
 
@@ -66,7 +67,7 @@ class Coupon {
             }
 
             return false;
-        } catch (Exception e) {
+        } catch (IOException e) {
             return false;
         }
     }

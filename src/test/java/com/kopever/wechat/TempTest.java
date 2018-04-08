@@ -100,7 +100,7 @@ public class TempTest {
                 "source-version=5.0&orderno=" + orderno + "&key=" + key);
         Request configRequest = new Request.Builder().url(ofoCouponActivityConfigUrl).post(configRequestBody).build();
         Response configResponse = client.newCall(configRequest).execute();
-        String configResult = configResponse.body().string();
+        String configResult = configResponse.body() == null ? "" : configResponse.body().string();
         System.out.println(configResult);
         byte luckyNum = jsonParser.parse(configResult).getAsJsonObject().getAsJsonObject("values").get("luckyNum").getAsByte();
         System.out.println("luckyNum: " + luckyNum);
@@ -109,7 +109,7 @@ public class TempTest {
                 "tel=" + new TempTest().getRandomPhoneNumber() + "&orderno=" + orderno + "&key=" + key);
         Request couponRequest = new Request.Builder().url(ofoCouponActivityShareUrl).post(couponRequestBody).build();
         Response couponResponse = client.newCall(couponRequest).execute();
-        String couponResult = couponResponse.body().string();
+        String couponResult = couponResponse.body() == null ? "" : couponResponse.body().string();
         System.out.println(couponResult);
 
         JsonObject jsonObject = jsonParser.parse(couponResult).getAsJsonObject().getAsJsonObject("values");
@@ -127,21 +127,21 @@ public class TempTest {
                                     "&key=" + key);
                     Request targetRequest = new Request.Builder().url(ofoCouponActivityShareUrl).post(targetRequestBody).build();
                     Response targetResponse = client.newCall(targetRequest).execute();
-                    String targetResult = targetResponse.body().string();
+                    String targetResult = targetResponse.body() == null ? "" : targetResponse.body().string();
                     System.out.println(targetResult);
                 } else {
                     RequestBody randomRequestBody = RequestBody.create(MediaType.parse("application/x-www-form-urlencoded"),
                             "tel=" + new TempTest().getRandomPhoneNumber() + "&orderno=" + orderno + "&key=" + key);
                     Request randomRequest = new Request.Builder().url(ofoCouponActivityShareUrl).post(randomRequestBody).build();
                     Response randomResponse = client.newCall(randomRequest).execute();
-                    String randomResult = randomResponse.body().string();
+                    String randomResult = randomResponse.body() == null ? "" : randomResponse.body().string();
                     System.out.println(randomResult);
                 }
             }
         }
     }
 
-    int[] mobilePrefix = new int[]{
+    private int[] mobilePrefix = new int[]{
             133, 153, 177, 180, 181, 189, 134,
             135, 136, 137, 138, 139, 150, 151,
             152, 157, 158, 159, 178, 182, 183,
