@@ -48,7 +48,7 @@ class Coupon {
             byte luckyNum = jsonParser.parse(configResult).getAsJsonObject().getAsJsonObject("values").get("luckyNum").getAsByte();
 
             List<String> numbers = new ArrayList<>(Arrays.asList(QUALIFIED_IDENTITY_POOL));
-            String detectPhoneNumber = numbers.remove(new Random().nextInt(numbers.size() - 1));
+            String detectPhoneNumber = Util.decodeBase64(numbers.remove(new Random().nextInt(numbers.size() - 1)));
 
             String detectParams = "tel=" + detectPhoneNumber + "&orderno=" + orderno + "&key=" + key;
             String detectResult = Util.httpPost(ofoCouponActivityShareUrl, detectParams);
@@ -76,8 +76,9 @@ class Coupon {
 
                         return targetShareList.size() == luckyNum;
                     } else {
-                        String randomPhoneNumber = numbers.remove(new Random().nextInt(numbers.size() - 1));
-                        Util.httpPost(ofoCouponActivityShareUrl, "tel=" + Util.decodeBase64(randomPhoneNumber) + "&orderno=" + orderno + "&key=" + key);
+                        Util.httpPost(ofoCouponActivityShareUrl,
+                                "tel=" + Util.decodeBase64(numbers.remove(new Random().nextInt(numbers.size() - 1))) +
+                                        "&orderno=" + orderno + "&key=" + key);
                     }
                 }
             }
