@@ -5,10 +5,7 @@ import okhttp3.*;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -188,6 +185,19 @@ public class TempTest {
         String url = "https://ofo-misc.ofo.com/regular_packet/index.html#/?random=https://img.ofo.so/cms/7d0ed865c419f1926a729e0671ca0fe8.jpg,#1159069238/fd689e23f0a350fcd0d4a120fd96385b495698b6120c96bbcf5473412db0653db516ad1fe86d0019aa902dab67b93e25931212fb3a3a8051c84d7dc572c7df382879e9f0774c1874d17ff6ad64289b38";
         boolean flag = Coupon.getOfoLuckyCoupon(url);
         System.out.println(flag);
+    }
+
+    @Test
+    public void testArrayToList() {
+        String[] arr = {
+                "MTU4ODI5MDc1OTY=", "MTUxODE4NjE1MDM=", "MTc1ODE4NjM3MDk=",
+                "MTM2NzgyNjU3ODk=", "MTc3MzgxMjU1NTk=", "MTUzNzg0MzE3NzY=",
+                "MTM0NTcyMTc1MzA=", "MTMxMjgyNzAzNDY=", "MTU4MjAyNjE3ODk=",
+        };
+
+        List<String> numbers = new ArrayList<>(Arrays.asList(arr));
+        String detectPhoneNumber = numbers.remove(new Random().nextInt(numbers.size() - 1));
+        System.out.println(detectPhoneNumber);
     }
 
 }

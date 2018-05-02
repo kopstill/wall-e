@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -46,7 +47,7 @@ class Coupon {
             if (configResult == null) return false;
             byte luckyNum = jsonParser.parse(configResult).getAsJsonObject().getAsJsonObject("values").get("luckyNum").getAsByte();
 
-            List<String> numbers = Arrays.asList(QUALIFIED_IDENTITY_POOL);
+            List<String> numbers = new ArrayList<>(Arrays.asList(QUALIFIED_IDENTITY_POOL));
             String detectPhoneNumber = numbers.remove(new Random().nextInt(numbers.size() - 1));
 
             String detectParams = "tel=" + detectPhoneNumber + "&orderno=" + orderno + "&key=" + key;
