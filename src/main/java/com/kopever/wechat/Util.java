@@ -6,33 +6,34 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
-import java.util.Random;
+import java.nio.charset.Charset;
+import java.util.Base64;
 
 /**
  * Created by Lullaby on 2018/4/4
  */
 class Util {
 
-    private static final int[] MOBILE_PREFIX = new int[]{
-            130, 131, 132, 133, 134, 135, 136,
-            137, 138, 139, 145, 147, 150, 151,
-            152, 153, 155, 156, 157, 158, 159,
-            170, 176, 177, 178, 180, 181, 182,
-            183, 184, 185, 186, 187, 188, 189
-    };
+//    private static final int[] MOBILE_PREFIX = new int[]{
+//            130, 131, 132, 133, 134, 135, 136,
+//            137, 138, 139, 145, 147, 150, 151,
+//            152, 153, 155, 156, 157, 158, 159,
+//            170, 176, 177, 178, 180, 181, 182,
+//            183, 184, 185, 186, 187, 188, 189
+//    };
+//
+//    static String generateRandomPhoneNumber() {
+//        StringBuilder mobileSuffix = new StringBuilder();
+//
+//        Random random = new Random();
+//        for (int i = 0; i < 8; i++) {
+//            mobileSuffix.append(random.nextInt(10));
+//        }
+//
+//        return MOBILE_PREFIX[new Random().nextInt(MOBILE_PREFIX.length)] + mobileSuffix.toString();
+//    }
 
     private static OkHttpClient client = getUnsafeOkHttpClient();
-
-    static String generateRandomPhoneNumber() {
-        StringBuilder mobileSuffix = new StringBuilder();
-
-        Random random = new Random();
-        for (int i = 0; i < 8; i++) {
-            mobileSuffix.append(random.nextInt(10));
-        }
-
-        return MOBILE_PREFIX[new Random().nextInt(MOBILE_PREFIX.length)] + mobileSuffix.toString();
-    }
 
     static String httpPost(String url, String params) throws IOException {
         RequestBody configRequestBody = RequestBody.create(MediaType.parse("application/x-www-form-urlencoded"), params);
@@ -81,6 +82,12 @@ class Util {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static final Charset UTF8 = Charset.forName("UTF-8");
+
+    static String decodeBase64(String base64) {
+        return new String(Base64.getDecoder().decode(base64.getBytes(UTF8)), UTF8);
     }
 
 }

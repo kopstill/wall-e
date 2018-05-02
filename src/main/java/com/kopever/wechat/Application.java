@@ -77,15 +77,7 @@ public class Application {
 
             checkLoginStatus(1);
 
-            if (isLogin) {
-                getLoginData();
-
-                initWechat();
-
-                establishNotify();
-
-                listenMessage();
-            }
+            if (isLogin) initLoginData();
         } catch (Exception e) {
             logger.severe(e.getMessage());
         }
@@ -94,37 +86,101 @@ public class Application {
         System.exit(0);
     }
 
-    private void listenMessage() throws IOException, InterruptedException {
-        String host = baseUrl.substring(8, baseUrl.length());
-        long timestamp = System.currentTimeMillis();
-        while (true) {
-            String checkUri = String.format("/synccheck?r=%s&skey=%s&sid=%s&uin=%s&deviceid=%s&synckey=%s&_=%s",
-                    System.currentTimeMillis(),
-                    URLEncoder.encode(skey, "UTF-8"),
-                    URLEncoder.encode(wxsid, "UTF-8"),
-                    URLEncoder.encode(wxuin, "UTF-8"),
-                    URLEncoder.encode(DEVICE_ID, "UTF-8"),
-                    URLEncoder.encode(getSynckey(), "UTF-8"),
-                    timestamp);
+    private String getQrcode() throws IOException {
+        String jsloginUrl = String.format(WECHAT_JSLOGIN_URL, System.currentTimeMillis());
+        String content = httpGet(jsloginUrl);
 
-            String checkUrl = "https://webpush." + host + checkUri;
+        String code = extract("window.QRLogin.code = (\\d+);", content);
+        String uuid = extract("window.QRLogin.uuid = \"(.*)\";", content);
+        if ("200".equals(code)) {
+            return uuid;
+        }
 
-            try {
-                checkMessage(checkUrl);
-            } catch (Exception e) {
-                logger.warning(e.getMessage());
-                Thread.sleep(3000);
+        throw new RuntimeException(content);
+    }
+
+    private void checkLoginStatus(int tip) throws IOException {
+        String checkLoginUrl = String.format(WECHAT_LOGIN_CHECK_URL, qrcode, tip, randomNegativeInt(), System.currentTimeMillis());
+        String result = httpGet(checkLoginUrl);
+
+        tip = 0;
+
+        String resultCode = extract("window.code=(\\d+);", result);
+        if ("408".equals(resultCode)) {
+            logger.info("Waiting for scanning the qrcode");
+            checkLoginStatus(tip);
+        } else if ("200".equals(resultCode)) {
+            this.isLogin = true;
+            String redirectUri = extract("window.redirect_uri=\"(\\S+?)\";", result);
+            if (redirectUri != null) {
+                this.redirectUri = redirectUri;
+                this.baseUrl = redirectUri.substring(0, redirectUri.lastIndexOf("/"));
             }
-
-            if (checkUri.equals(checkUrl)) {
-                break;
-            }
-
-            timestamp++;
+        } else if ("201".equals(resultCode)) {
+            logger.info("Scanned successfully");
+            logger.info("Please confirm on your device");
+            checkLoginStatus(tip);
+        } else if ("400".equals(resultCode)) {
+            logger.warning("Qrcode expired");
+            logger.warning("Please restart the application to get new qrcode");
+        } else {
+            logger.warning(result);
+            throw new RuntimeException("Unexpected login status");
         }
     }
 
-    private void establishNotify() throws IOException {
+    private void initLoginData() throws IOException {
+        String result = httpGet(redirectUri + "&fun=new&version=v2");
+
+        String ret = null;
+        String message = null;
+        if (result != null) {
+            ret = extract("<ret>(\\S+)</ret>", result);
+            message = extract("<message>(\\S+)</message>", result);
+            if (message == null) {
+                message = result.substring(result.indexOf("<message>") + "<message>".length(), result.indexOf("</message>"));
+            }
+
+            if ("0".equals(ret)) {
+                logger.info("Login successfully");
+
+                this.skey = extract("<skey>(\\S+)</skey>", result);
+                this.wxsid = extract("<wxsid>(\\S+)</wxsid>", result);
+                this.wxuin = extract("<wxuin>(\\S+)</wxuin>", result);
+                this.passTicket = extract("<pass_ticket>(\\S+)</pass_ticket>", result);
+
+                logger.info("Session parameters initialized");
+
+                initWechat();
+            }
+        }
+
+        throw new RuntimeException(ret + ":" + message);
+    }
+
+    private void initWechat() throws IOException {
+        String initUrl = baseUrl + "/webwxinit" + "?r=" + randomNegativeInt() + "&lang=zh_CN" + "&pass_ticket=" + passTicket;
+
+        Map<String, String> params = new HashMap<>(4);
+        params.put("DeviceID", DEVICE_ID);
+        params.put("Sid", wxsid);
+        params.put("Skey", skey);
+        params.put("Uin", wxuin);
+
+        String result = httpPost(initUrl, "{\"BaseRequest\":" + toJson(params) + "}");
+        if (result != null) {
+            JsonObject jsonObject = jsonParser.parse(result).getAsJsonObject();
+            synckey = jsonObject.getAsJsonObject("SyncKey");
+            username = jsonObject.getAsJsonObject("User").get("UserName").getAsString();
+            logger.info("Wechat initialized");
+
+            establishNotice();
+        }
+
+        throw new RuntimeException("Wechat initialize exception");
+    }
+
+    private void establishNotice() throws IOException {
         String establishUrl = baseUrl + "/webwxstatusnotify?pass_ticket=" + passTicket;
 
         Map<String, Object> params = new HashMap<>();
@@ -151,14 +207,48 @@ public class Application {
             String ret = baseResponse.get("Ret").getAsString();
             String msg = baseResponse.get("ErrMsg").getAsString();
             if ("0".equals(ret)) {
-                logger.info("Notify connection established");
-                return;
+                logger.info("Notice connection established");
+                listenMessage();
             }
 
             logger.severe(msg);
         }
 
-        throw new RuntimeException("Establish notify connection failed");
+        throw new RuntimeException("Establish notice connection failed");
+    }
+
+    private void listenMessage() throws IOException {
+        String host = baseUrl.substring(8, baseUrl.length());
+        long timestamp = System.currentTimeMillis();
+        while (true) {
+            String checkUri = String.format("/synccheck?r=%s&skey=%s&sid=%s&uin=%s&deviceid=%s&synckey=%s&_=%s",
+                    System.currentTimeMillis(),
+                    URLEncoder.encode(skey, "UTF-8"),
+                    URLEncoder.encode(wxsid, "UTF-8"),
+                    URLEncoder.encode(wxuin, "UTF-8"),
+                    URLEncoder.encode(DEVICE_ID, "UTF-8"),
+                    URLEncoder.encode(getSynckey(), "UTF-8"),
+                    timestamp);
+
+            String checkUrl = "https://webpush." + host + checkUri;
+
+            try {
+                checkMessage(checkUrl);
+            } catch (Exception e) {
+                logger.warning(e.getMessage());
+                try {
+                    Thread.sleep(3000);
+                } catch (InterruptedException ie) {
+                    logger.warning(ie.getMessage());
+                }
+            }
+
+            if (checkUri.equals(checkUrl)) {
+                break;
+            }
+
+            timestamp++;
+        }
     }
 
     private void checkMessage(String checkUrl) throws IOException {
@@ -259,99 +349,6 @@ public class Application {
                 logger.warning("Send message failed, msg: " + msg);
             }
         }
-    }
-
-    private void initWechat() throws IOException {
-        String initUrl = baseUrl + "/webwxinit" + "?r=" + randomNegativeInt() + "&lang=zh_CN" + "&pass_ticket=" + passTicket;
-
-        Map<String, String> params = new HashMap<>(4);
-        params.put("DeviceID", DEVICE_ID);
-        params.put("Sid", wxsid);
-        params.put("Skey", skey);
-        params.put("Uin", wxuin);
-
-        String result = httpPost(initUrl, "{\"BaseRequest\":" + toJson(params) + "}");
-        if (result != null) {
-            JsonObject jsonObject = jsonParser.parse(result).getAsJsonObject();
-            synckey = jsonObject.getAsJsonObject("SyncKey");
-            username = jsonObject.getAsJsonObject("User").get("UserName").getAsString();
-            logger.info("Wechat initialized");
-
-            return;
-        }
-
-        throw new RuntimeException("Wechat initialize exception");
-    }
-
-    private void getLoginData() throws IOException {
-        String result = httpGet(redirectUri + "&fun=new&version=v2");
-
-        String ret = null;
-        String message = null;
-        if (result != null) {
-            ret = extract("<ret>(\\S+)</ret>", result);
-            message = extract("<message>(\\S+)</message>", result);
-            if (message == null) {
-                message = result.substring(result.indexOf("<message>") + "<message>".length(), result.indexOf("</message>"));
-            }
-
-            if ("0".equals(ret)) {
-                logger.info("Login successfully");
-
-                this.skey = extract("<skey>(\\S+)</skey>", result);
-                this.wxsid = extract("<wxsid>(\\S+)</wxsid>", result);
-                this.wxuin = extract("<wxuin>(\\S+)</wxuin>", result);
-                this.passTicket = extract("<pass_ticket>(\\S+)</pass_ticket>", result);
-
-                logger.info("Session parameters initialized");
-                return;
-            }
-        }
-
-        throw new RuntimeException(ret + ":" + message);
-    }
-
-    private void checkLoginStatus(int tip) throws IOException {
-        String checkLoginUrl = String.format(WECHAT_LOGIN_CHECK_URL, qrcode, tip, randomNegativeInt(), System.currentTimeMillis());
-        String result = httpGet(checkLoginUrl);
-
-        tip = 0;
-
-        String resultCode = extract("window.code=(\\d+);", result);
-        if ("408".equals(resultCode)) {
-            logger.info("Waiting for scanning the qrcode");
-            checkLoginStatus(tip);
-        } else if ("200".equals(resultCode)) {
-            this.isLogin = true;
-            String redirectUri = extract("window.redirect_uri=\"(\\S+?)\";", result);
-            if (redirectUri != null) {
-                this.redirectUri = redirectUri;
-                this.baseUrl = redirectUri.substring(0, redirectUri.lastIndexOf("/"));
-            }
-        } else if ("201".equals(resultCode)) {
-            logger.info("Scanned successfully");
-            logger.info("Please confirm on your device");
-            checkLoginStatus(tip);
-        } else if ("400".equals(resultCode)) {
-            logger.warning("Qrcode expired");
-            logger.warning("Please restart the application to get new qrcode");
-        } else {
-            logger.warning(result);
-            throw new RuntimeException("Unexpected login status");
-        }
-    }
-
-    private String getQrcode() throws IOException {
-        String jsloginUrl = String.format(WECHAT_JSLOGIN_URL, System.currentTimeMillis());
-        String content = httpGet(jsloginUrl);
-
-        String code = extract("window.QRLogin.code = (\\d+);", content);
-        String uuid = extract("window.QRLogin.uuid = \"(.*)\";", content);
-        if ("200".equals(code)) {
-            return uuid;
-        }
-
-        throw new RuntimeException(content);
     }
 
     private String getSynckey() {

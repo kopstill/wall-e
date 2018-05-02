@@ -82,7 +82,7 @@ public class TempTest {
 
     @Test
     public void testGetOfoLuckyCoupon() throws IOException {
-        String url = "https://ofo-misc.ofo.com/regular_packet/index.html#/?random=https%3A%2F%2Fimg.ofo.so%2Fcms%2F7d0ed865c419f1926a729e0671ca0fe8.jpg,#1146636033/4a8f22fe84346276b82de5399f829bb8f8b595619cd32cbce0ced9a4d8124c185670e8ed3014f7fd283210120e898c5ee4ec9fb47cf021b2944326c030d04293e624250920d1c6f3d470a7e9e8deb25e";
+        String url = "https://ofo-misc.ofo.com/regular_packet/index.html#/?random=https://img.ofo.so/cms/7d0ed865c419f1926a729e0671ca0fe8.jpg,#1447979595/fc62197feecf6d36e652b0a07af05f412a142dfdfc08ef7b57358ee8e9d28100f6f9485f5e03b966a7435419f8392502d8dfc37276e90c3c42ae46dcd7c0cf584c2c0c5e8b74a80a989c05f846da9b41";
         String substring = url.substring(url.lastIndexOf("#") + 1, url.length());
         String[] refs = substring.split("[/]");
         String orderno = refs[0];
@@ -106,7 +106,7 @@ public class TempTest {
         System.out.println("luckyNum: " + luckyNum);
 
         RequestBody couponRequestBody = RequestBody.create(MediaType.parse("application/x-www-form-urlencoded"),
-                "tel=" + new TempTest().getRandomPhoneNumber() + "&orderno=" + orderno + "&key=" + key);
+                "tel=" + new TempTest().generateRandomPhoneNumber() + "&orderno=" + orderno + "&key=" + key);
         Request couponRequest = new Request.Builder().url(ofoCouponActivityShareUrl).post(couponRequestBody).build();
         Response couponResponse = client.newCall(couponRequest).execute();
         String couponResult = couponResponse.body() == null ? "" : couponResponse.body().string();
@@ -131,7 +131,7 @@ public class TempTest {
                     System.out.println(targetResult);
                 } else {
                     RequestBody randomRequestBody = RequestBody.create(MediaType.parse("application/x-www-form-urlencoded"),
-                            "tel=" + new TempTest().getRandomPhoneNumber() + "&orderno=" + orderno + "&key=" + key);
+                            "tel=" + new TempTest().generateRandomPhoneNumber() + "&orderno=" + orderno + "&key=" + key);
                     Request randomRequest = new Request.Builder().url(ofoCouponActivityShareUrl).post(randomRequestBody).build();
                     Response randomResponse = client.newCall(randomRequest).execute();
                     String randomResult = randomResponse.body() == null ? "" : randomResponse.body().string();
@@ -158,7 +158,7 @@ public class TempTest {
         }
     }
 
-    private String getRandomPhoneNumber() {
+    private String generateRandomPhoneNumber() {
         Random random = new Random();
 
         int prefix = mobilePrefix[random.nextInt(mobilePrefix.length)];
