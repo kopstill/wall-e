@@ -168,7 +168,7 @@ public class TempTest {
         return prefix + phone.toString();
     }
 
-    private static void bubbleSort(int[] arr) {
+    private void bubbleSort(int[] arr) {
         for (int i = 0; i < arr.length - 1; i++) {
             for (int j = 0; j < arr.length - 1 - i; j++) {
                 if (arr[j] > arr[j + 1]) {
@@ -178,6 +178,46 @@ public class TempTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void testQuickSort() {
+        int[] arr = {4, 9, 1, 6, 3, 4, 5, 2, 8, 0, 7};
+        qSort(arr, 0, arr.length - 1);
+        quickSort(arr, 0, arr.length - 1);
+        for (int i : arr) {
+            System.out.print(i + "\t");
+        }
+    }
+
+    private void quickSort(int[] arr, int head, int tail) {
+        if (head >= tail || arr == null || arr.length <= 1) return;
+
+        int i = head, j = tail, pivot = arr[(head + tail) / 2];
+
+        while (i <= j) {
+            while (arr[i] < pivot) {
+                ++i;
+            }
+
+            while (arr[j] > pivot) {
+                --j;
+            }
+
+            if (i < j) {
+                int t = arr[i];
+                arr[i] = arr[j];
+                arr[j] = t;
+                ++i;
+                --j;
+            } else if (i == j) {
+                ++i;
+            }
+        }
+
+        quickSort(arr, head, j);
+
+        quickSort(arr, i, tail);
     }
 
     @Test
@@ -200,6 +240,41 @@ public class TempTest {
         List<String> numbers = new ArrayList<>(Arrays.asList(arr));
         String detectPhoneNumber = numbers.remove(new Random().nextInt(numbers.size() - 1));
         System.out.println(detectPhoneNumber);
+    }
+
+    // int[] arr = {4, 9, 1, 6, 3, 4, 5, 2, 8, 0, 7};
+    private int partition(int arr[], int left, int right) {
+        int i = left, j = right;
+        int tmp = arr[left];
+
+        while (i < j) {
+            while (i < j && arr[j] > tmp) j--;
+
+            if (i < j) {
+                arr[i] = arr[j];
+                i++;
+            }
+
+            while (i < j && arr[i] < tmp) i++;
+
+            if (i < j) {
+                arr[j] = arr[i];
+                j--;
+            }
+        }
+
+        arr[i] = tmp;
+
+        return i;
+    }
+
+    private void qSort(int arr[], int left, int right) {
+        if (left > right) return;
+
+        int p = partition(arr, left, right);
+
+        qSort(arr, left, p - 1);
+        qSort(arr, p + 1, right);
     }
 
 }
