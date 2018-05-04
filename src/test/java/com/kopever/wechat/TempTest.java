@@ -151,7 +151,7 @@ public class TempTest {
         bubbleSort(mobilePrefix);
 
         for (int i : mobilePrefix) {
-            System.out.print(i + " ");
+            System.out.println(i);
         }
     }
 
@@ -170,7 +170,7 @@ public class TempTest {
 
     private static void bubbleSort(int[] arr) {
         for (int i = 0; i < arr.length - 1; i++) {
-            for (int j = 0; j < arr.length - 1; j++) {
+            for (int j = 0; j < arr.length - 1 - i; j++) {
                 if (arr[j] > arr[j + 1]) {
                     int temp = arr[j];
                     arr[j] = arr[j + 1];
@@ -182,7 +182,9 @@ public class TempTest {
 
     @Test
     public void testOfoLuckyCoupon() {
-        String url = "https://ofo-misc.ofo.com/regular_packet/index.html#/?random=https://img.ofo.so/cms/7d0ed865c419f1926a729e0671ca0fe8.jpg,#1159069238/fd689e23f0a350fcd0d4a120fd96385b495698b6120c96bbcf5473412db0653db516ad1fe86d0019aa902dab67b93e25931212fb3a3a8051c84d7dc572c7df382879e9f0774c1874d17ff6ad64289b38";
+        String url = "https://ofo-misc.ofo.com/regular_packet/index.html#/?" +
+                "random=https://img.ofo.so/cms/7d0ed865c419f1926a729e0671ca0fe8.jpg," +
+                "#1159069238/fd689e23f0a350fcd0d4a120fd96385b495698b6120c96bbcf5473412db0653db516ad1fe86d0019aa902dab67b93e25931212fb3a3a8051c84d7dc572c7df382879e9f0774c1874d17ff6ad64289b38";
         boolean flag = Coupon.getOfoLuckyCoupon(url);
         System.out.println(flag);
     }
