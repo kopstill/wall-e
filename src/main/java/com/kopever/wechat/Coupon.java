@@ -28,65 +28,71 @@ class Coupon {
             "MTM0NTcyMTc1MzA=", "MTMxMjgyNzAzNDY=", "MTU4MjAyNjE3ODk=",
     };
 
-    static boolean getOfoLuckyCoupon(String url) {
-        try {
-            String substring = url.substring(url.lastIndexOf("#") + 1, url.length());
-            String[] refs = substring.split("[/]");
-            String orderno = refs[0];
-            String key = refs[1];
+    static class OfoPacket {
 
-            String ofoActivityUrl = "https://activity.api.ofo.com";
-            String ofoCouponActivityUrl = ofoActivityUrl + "/activity/couponShare";
-            String ofoCouponActivityConfigUrl = ofoCouponActivityUrl + "/config";
-            String ofoCouponActivityShareUrl = ofoCouponActivityUrl + "/getShareCoupon";
+        private static final String OFO_ACTIVITY_URL = "https://activity.api.ofo.com";
+        private static final String OFO_COUPON_ACTIVITY_URL = OFO_ACTIVITY_URL + "/activity/couponShare";
+        private static final String OFO_COUPON_ACTIVITY_CONFIG_URL = OFO_COUPON_ACTIVITY_URL + "/config";
+        private static final String OFO_COUPON_ACTIVITY_SHARE_URL = OFO_COUPON_ACTIVITY_URL + "/getShareCoupon";
 
-            String configParams = "source-version=5.0&orderno=" + orderno + "&key=" + key;
-            String configResult = Util.httpPost(ofoCouponActivityConfigUrl, configParams);
-            logger.info("Config result: " + configResult);
+        private static final String OFO_COUPON_PARAMS_TEMPLATE = "tel=%s&orderno=%s";
 
-            if (configResult == null) return false;
-            byte luckyNum = jsonParser.parse(configResult).getAsJsonObject().getAsJsonObject("values").get("luckyNum").getAsByte();
+        static boolean getOfoLuckyCoupon(String url) {
+            try {
+                String substring = url.substring(url.lastIndexOf("#") + 1, url.length());
+                String[] refs = substring.split("[/]");
+                String orderno = refs[0];
+                String key = refs[1];
 
-            List<String> numbers = new ArrayList<>(Arrays.asList(QUALIFIED_IDENTITY_POOL));
-            String detectPhoneNumber = Util.decodeBase64(numbers.remove(new Random().nextInt(numbers.size() - 1)));
+                String configParams = "source-version=5.0&orderno=" + orderno + "&key=" + key;
+                String configResult = Util.httpPost(OFO_COUPON_ACTIVITY_CONFIG_URL, configParams);
+                logger.info("Config result: " + configResult);
 
-            String detectParams = "tel=" + detectPhoneNumber + "&orderno=" + orderno + "&key=" + key;
-            String detectResult = Util.httpPost(ofoCouponActivityShareUrl, detectParams);
-            logger.info("Detect result: " + detectResult);
+                if (configResult == null) return false;
+                byte luckyNum = jsonParser.parse(configResult).getAsJsonObject().getAsJsonObject("values").get("luckyNum").getAsByte();
 
-            if (detectResult == null) return false;
+                List<String> numbers = new ArrayList<>(Arrays.asList(QUALIFIED_IDENTITY_POOL));
+                String detectPhoneNumber = Util.decodeBase64(numbers.remove(new Random().nextInt(numbers.size())));
 
-            JsonObject detectJsonObject = jsonParser.parse(detectResult).getAsJsonObject();
-            if (detectJsonObject.get("errorCode").getAsInt() != 200) return false;
+                String detectParams = String.format(OFO_COUPON_PARAMS_TEMPLATE, detectPhoneNumber, orderno, key);
+                String detectResult = Util.httpPost(OFO_COUPON_ACTIVITY_SHARE_URL, detectParams);
+                logger.info("Detect result: " + detectResult);
 
-            JsonArray shareList = detectJsonObject.getAsJsonObject("values").getAsJsonArray("shareList");
-            int shareListSize = shareList.size();
-            if (shareListSize < luckyNum) {
-                int count = luckyNum - shareListSize;
-                for (int i = 0; i < count; i++) {
-                    if (i == count - 1) {
-                        String targetParams = "tel=" + Util.decodeBase64(TARGET_IDENTITY) + "&orderno=" + orderno + "&key=" + key;
-                        String targetResult = Util.httpPost(ofoCouponActivityShareUrl, targetParams);
-                        logger.info("Target result: " + targetResult);
+                if (detectResult == null) return false;
 
-                        if (targetResult == null) return false;
+                JsonObject detectJsonObject = jsonParser.parse(detectResult).getAsJsonObject();
+                if (detectJsonObject.get("errorCode").getAsInt() != 200) return false;
 
-                        JsonObject targetJsonObject = jsonParser.parse(targetResult).getAsJsonObject().getAsJsonObject("values");
-                        JsonArray targetShareList = targetJsonObject.getAsJsonArray("shareList");
+                JsonArray shareList = detectJsonObject.getAsJsonObject("values").getAsJsonArray("shareList");
+                int shareListSize = shareList.size();
+                if (shareListSize < luckyNum) {
+                    int count = luckyNum - shareListSize;
+                    for (int i = 0; i < count; i++) {
+                        if (i == count - 1) {
+                            String targetResult = Util.httpPost(OFO_COUPON_ACTIVITY_SHARE_URL,
+                                    String.format(OFO_COUPON_PARAMS_TEMPLATE, Util.decodeBase64(TARGET_IDENTITY), orderno, key));
+                            logger.info("Target result: " + targetResult);
 
-                        return targetShareList.size() == luckyNum;
-                    } else {
-                        Util.httpPost(ofoCouponActivityShareUrl,
-                                "tel=" + Util.decodeBase64(numbers.remove(new Random().nextInt(numbers.size() - 1))) +
-                                        "&orderno=" + orderno + "&key=" + key);
+                            if (targetResult == null) return false;
+
+                            JsonObject targetJsonObject = jsonParser.parse(targetResult).getAsJsonObject().getAsJsonObject("values");
+                            JsonArray targetShareList = targetJsonObject.getAsJsonArray("shareList");
+
+                            return targetShareList.size() == luckyNum;
+                        } else {
+                            Util.httpPost(OFO_COUPON_ACTIVITY_SHARE_URL,
+                                    String.format(OFO_COUPON_PARAMS_TEMPLATE,
+                                            Util.decodeBase64(numbers.remove(new Random().nextInt(numbers.size()))), orderno, key));
+                        }
                     }
                 }
-            }
 
-            return false;
-        } catch (IOException e) {
-            return false;
+                return false;
+            } catch (IOException e) {
+                return false;
+            }
         }
+
     }
 
 }

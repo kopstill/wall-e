@@ -307,7 +307,7 @@ public class Application {
 
         if (url.startsWith("https://ofo-misc.ofo.com/regular_packet/")) {
             logger.info("Ofo coupon url: " + url);
-            if (Coupon.getOfoLuckyCoupon(url)) {
+            if (Coupon.OfoPacket.getOfoLuckyCoupon(url)) {
                 sendMessage(username, "成功领取一个ofo红包");
             } else {
                 sendMessage(username, "收到一个ofo红包但领取失败");

@@ -225,7 +225,7 @@ public class TempTest {
         String url = "https://ofo-misc.ofo.com/regular_packet/index.html#/?" +
                 "random=https://img.ofo.so/cms/7d0ed865c419f1926a729e0671ca0fe8.jpg," +
                 "#1159069238/fd689e23f0a350fcd0d4a120fd96385b495698b6120c96bbcf5473412db0653db516ad1fe86d0019aa902dab67b93e25931212fb3a3a8051c84d7dc572c7df382879e9f0774c1874d17ff6ad64289b38";
-        boolean flag = Coupon.getOfoLuckyCoupon(url);
+        boolean flag = Coupon.OfoPacket.getOfoLuckyCoupon(url);
         System.out.println(flag);
     }
 
@@ -238,7 +238,7 @@ public class TempTest {
         };
 
         List<String> numbers = new ArrayList<>(Arrays.asList(arr));
-        String detectPhoneNumber = numbers.remove(new Random().nextInt(numbers.size() - 1));
+        String detectPhoneNumber = numbers.remove(new Random().nextInt(numbers.size()));
         System.out.println(detectPhoneNumber);
     }
 
