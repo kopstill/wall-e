@@ -35,7 +35,7 @@ class Coupon {
         private static final String OFO_COUPON_ACTIVITY_CONFIG_URL = OFO_COUPON_ACTIVITY_URL + "/config";
         private static final String OFO_COUPON_ACTIVITY_SHARE_URL = OFO_COUPON_ACTIVITY_URL + "/getShareCoupon";
 
-        private static final String OFO_COUPON_PARAMS_TEMPLATE = "tel=%s&orderno=%s";
+        private static final String OFO_COUPON_PARAMS_TEMPLATE = "tel=%s&orderno=%s&key=%s";
 
         static boolean getOfoLuckyCoupon(String url) {
             try {

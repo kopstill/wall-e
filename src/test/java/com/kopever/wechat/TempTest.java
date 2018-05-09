@@ -224,7 +224,7 @@ public class TempTest {
     public void testOfoLuckyCoupon() {
         String url = "https://ofo-misc.ofo.com/regular_packet/index.html#/?" +
                 "random=https://img.ofo.so/cms/7d0ed865c419f1926a729e0671ca0fe8.jpg," +
-                "#1159069238/fd689e23f0a350fcd0d4a120fd96385b495698b6120c96bbcf5473412db0653db516ad1fe86d0019aa902dab67b93e25931212fb3a3a8051c84d7dc572c7df382879e9f0774c1874d17ff6ad64289b38";
+                "#1426332069/fa1cca952798a460b89ff439932ddc14727c407b51c4d68fde52850250b2b9699bdab88049914929d19392e2c901dacf9a8be3bee402df36242dcac3198208c39151bb47dd55af846b2fdb259e3b9837";
         boolean flag = Coupon.OfoPacket.getOfoLuckyCoupon(url);
         System.out.println(flag);
     }
