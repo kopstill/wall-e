@@ -304,13 +304,13 @@ public class Application {
 
     private void handleLinkMessage(JsonObject msgobj) throws IOException {
         String url = msgobj.get("Url").getAsString();
+        logger.info("Received url: " + url);
 
         if (url.startsWith("https://ofo-misc.ofo.com/regular_packet/")) {
-            logger.info("Ofo coupon url: " + url);
             if (Coupon.OfoPacket.getOfoLuckyCoupon(url)) {
-                sendMessage(username, "成功领取一个ofo红包");
+                sendMessage(username, "成功领取一个ofo大红包\uD83D\uDE09");
             } else {
-                sendMessage(username, "收到一个ofo红包但领取失败");
+                sendMessage(username, "收到一个ofo红包但领取失败\uD83E\uDD14");
             }
         }
     }
